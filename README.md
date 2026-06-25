@@ -1,2 +1,18 @@
 # useful_trick
-markdown file conclude my daily programming trival issues, and how I solved it.
+
+一个用来记录我已经解决过的零碎 CS 问题的小仓库。
+
+- `solved/`
+  - 存放具体问题的 Markdown 记录。
+  - 每篇记录尽量包含：
+    - 问题背景
+    - 排查过程
+    - 最终解法
+    - 可复用的命令、配置或代码片段
+
+- 主要内容方向
+  - Web 开发与调试
+  - AI / 算法相关问题
+  - Linux 部署与环境配置
+  - Paper Agent / 科研自动化工作流
+  - 其他日常编程中的小坑和实用技巧
