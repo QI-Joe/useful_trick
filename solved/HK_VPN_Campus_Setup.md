@@ -38,6 +38,41 @@
 
 *(原理：在 Windows 路由表中开辟物理免死金牌。只要系统检测到去往 `xxx.xxx.x.x` 的握手包，一律跳过 VPN 隧道，直接走物理以太网卡。)*
 
+### 2.1 Windscribe Inclusive 模式
+1. 同上
+2. 同上
+3. 选择Inclusive模式，打开 **Application**, 并点击添加
+4. 打开Windows cmd，输入 ```where python```, 找到**Miniconda/Anaconda**的python.exe, 如果你用的是UV，那应该去选择默认的UV python.exe (未验证，存疑)
+5. 复制```python.exe```地址在**Application**弹出的文件框里，选择添加并勾选
+6. 打开 ```Allow LAN (允许本地局域网络连接)```，不然proxy连不上 $\leftarrow$ ```这很重要```
+7. 在本机使用
+  ```cmd
+  curl -I http://127.0.0.1:7890 # (ubuntu 侧也可，为了验证HTTP信道是否设置了)
+  ```
+  并在Ubuntu侧使用
+  ```cmd
+  curl -x http://127.0.0.1:7890 https://api.openai.com
+  ```
+  测试，直到出现 ```200```便是成功连接
+
+### 2.2 Windscribe Inclusive 模式中途断线重连方法；
+1. 直接关机重启 (最直接方法，如不想，按照以下步骤)
+2. 关闭 python-proxy 并等待几分钟
+  ```cmd
+  python -m proxy --hostname 127.0.0.1 --port 7890 # 关闭并等待
+  ```
+3. 尝试在Ubuntu侧输入 ```curl -x http://127.0.0.1:7890 https://api.openai.com```, 这是为了等待你的本机彻底从缓存关闭proxy，此时这个命令的结果会从 \
+   **一直卡住什么也不返回** \
+   到返回结果 \
+   **Failed to connect after 0 ms -- Cannot Connect with server**，\
+   那么就说明原本的本机proxy被真正清除了
+4. 此时首先确保Vscode要关掉，然后杀掉本机的 ```ssh.exe```进程，在```powershell```上
+  ```cmd
+  taskkill /F /IM ssh.exe /T
+  ```
+5. 重启VScode remote server connection，一切就都好了
+
+#### 为什么要用Inclusive？因为Windscribe只有10GB流量，而我们只要xcode能用就行
 ---
 
 ## 第二部分：建立 Local PC 与 Remote Server 的隧道引渡出海
