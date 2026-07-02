@@ -10,7 +10,7 @@
 
 > **文档元数据**
 > * **适用生态**：香港高校内网（典型如 PolyU 理大 `158.132.x.x` 公网级局域网）
-> * **硬件拓扑**：本地 Windows PC (直连校园网) $\leftrightarrow$ 校内 Ubuntu Server
+> * **硬件拓扑**：本地 Windows PC (直连校园网) <-> 校内 Ubuntu Server
 > * **核心诉求**：本地维持 0ms 裸连内网服务器，同时让服务器内的 AI Agent 穿透 OpenAI 地理封锁。
 > * **架构定性**：基于“全局 VPN 路由接管（Exclusive）” + “CIDR 子网物理豁免” + “SSH 反向隧道（RemoteForward）”。
 
@@ -25,7 +25,7 @@
 2. 在 Windows 上安装支持高级拆分隧道（Split Tunneling）的 **Windscribe VPN**。
 
 ### 2. Windscribe “掀桌子”级 CIDR 豁免配置
-1. 打开 Windscribe $\rightarrow$ Preferences (设置) $\rightarrow$ **Connection (连接)**。
+1. 打开 Windscribe -> Preferences (设置) -> **Connection (连接)**。
 2. 进入 **Split Tunneling (拆分隧道)**，将顶部大开关拨到 **`ON`**。
 3. **【生死决断点】Mode（模式）**：强行切换为 **`Exclusive`（排除）**。
    *(逻辑：全电脑的所有应用、所有底层组件强制走美国 VPN，绝不漏网，从而彻底解决 WebRTC、DNS 等底层信息的环境泄露问题。)*
@@ -42,35 +42,49 @@
 1. 同上
 2. 同上
 3. 选择Inclusive模式，打开 **Application**, 并点击添加
-4. 打开Windows cmd，输入 ```where python```, 找到**Miniconda/Anaconda**的python.exe, 如果你用的是UV，那应该去选择默认的UV python.exe (未验证，存疑)
-5. 复制```python.exe```地址在**Application**弹出的文件框里，选择添加并勾选
-6. 打开 ```Allow LAN (允许本地局域网络连接)```，不然proxy连不上 $\leftarrow$ ```这很重要```
-7. 在本机使用
+4. 打开 Windows `cmd`，输入 `where python`，找到 **Miniconda/Anaconda** 的 `python.exe`。如果你用的是 UV，那应该去选择默认的 UV `python.exe`（未验证，存疑）。
+5. 复制 `python.exe` 地址，在 **Application** 弹出的文件框里选择添加并勾选。
+6. 打开 `Allow LAN (允许本地局域网络连接)`，不然 proxy 连不上。这个选项很重要。
+7. 在本机使用：
+
   ```cmd
-  curl -I http://127.0.0.1:7890 # (ubuntu 侧也可，为了验证HTTP信道是否设置了)
+  curl -I http://127.0.0.1:7890
   ```
-  并在Ubuntu侧使用
+
+  并在 Ubuntu 侧使用：
+
   ```cmd
   curl -x http://127.0.0.1:7890 https://api.openai.com
   ```
-  测试，直到出现 ```200```便是成功连接
+
+  测试，直到出现 `200` 便是成功连接。
 
 ### 2.2 Windscribe Inclusive 模式中途断线重连方法；
 1. 直接关机重启 (最直接方法，如不想，按照以下步骤)
-2. 关闭 python-proxy 并等待几分钟
-  ```cmd
-  python -m proxy --hostname 127.0.0.1 --port 7890 # 关闭并等待
-  ```
-3. 尝试在Ubuntu侧输入 ```curl -x http://127.0.0.1:7890 https://api.openai.com```, 这是为了等待你的本机彻底从缓存关闭proxy，此时这个命令的结果会从 \
-   **一直卡住什么也不返回** \
-   到返回结果 \
-   **Failed to connect after 0 ms -- Cannot Connect with server**，\
-   那么就说明原本的本机proxy被真正清除了
-4. 此时首先确保Vscode要关掉，然后杀掉本机的 ```ssh.exe```进程，在```powershell```上
+2. 关闭 `python-proxy` 并等待几分钟。
+3. 尝试在 Ubuntu 侧输入 `curl -x http://127.0.0.1:7890 https://api.openai.com`。这是为了等待你的本机彻底从缓存关闭 proxy，此时这个命令的结果会经历以下变化：
+
+  - 一直卡住，什么也不返回。
+  - 到返回 `Failed to connect after 0 ms -- Cannot Connect with server`。
+
+  出现第二种结果后，就说明原本的本机 proxy 被真正清除了。
+4. 此时先确保 VSCode 已关掉，然后在 `powershell` 上杀掉本机的 `ssh.exe` 进程：
+
   ```cmd
   taskkill /F /IM ssh.exe /T
   ```
-5. 重启VScode remote server connection，一切就都好了
+
+  同时重新打开 proxy，并在 Ubuntu 侧输入：
+
+  ```cmd
+  fuser -k 7890/tcp
+  ```
+
+  归根结底还是因为：
+
+  > 服务器上的老后台守护进程 `sshd` 还活着，并且霸占着远端的 `127.0.0.1:7890` 端口。当你杀掉本地 `ssh.exe` 后，新连接重连时试图向 Ubuntu 申请将 `7890` 端口绑在反向隧道上，但被老进程驳回（`Address already in use`）。而 OpenSSH 客户端默认会将这个端口转发失败的报错吞掉，让你顺利登入终端。最终，你在 Ubuntu 里敲下 `curl` 时，数据包全部交给了上一任连接着断裂网线的僵尸 `sshd` 进程，因而陷入无限期挂起。
+
+5. 重启 VSCode Remote Server connection，一切就都好了。
 
 #### 为什么要用Inclusive？因为Windscribe只有10GB流量，而我们只要xcode能用就行
 ---
@@ -100,6 +114,7 @@
 
 * **第 1 步（底层网络接管）**：直接在 Windscribe 客户端点击大开关，连上美国节点。此时你的 Windows PC 已具备完整的出海能力，且理大内网已被安全豁免。
 * **第 2 步（升起代理中枢）**：在 Windows 桌面开一个终端（建议使用 Anaconda Prompt 以避开 WindowsApp 目录下的 0 字节幽灵软链接，防止触发 `WinError 5`），敲入：
+
   ```cmd
   python -m proxy --hostname 127.0.0.1 --port 7890
   ```
@@ -108,6 +123,7 @@
 *(注：将其挂在屏幕一侧。在 Exclusive 模式下，当有请求命中该端口时，此终端会实时刷出连接日志。)*
 * **第 3 步（凿开跨海隧道）**：打开 VSCode 或新的 cmd，执行 `ssh shihao@158.132.74.xx` 连入 Ubuntu 服务器。
 * **第 4 步（链路查验）**：在 Ubuntu 服务器终端内输入：
+
   ```bash
   export https_proxy=http://127.0.0.1:7890
   curl -I https://api.openai.com
@@ -175,7 +191,7 @@ client = OpenAI() # 发出的 API 请求将顺着隧道直达美国
 * **【起因逻辑链】**：我们放弃了服务器端出海，换用了支持“按应用拆分隧道（Inclusive模式）”的 Windscribe VPN。思路很顺：我平时主要在 VSCode 里写代码、连服务器、跑 AI 插件，那我直接把 `vscode.exe` 勾选进 VPN 白名单，让 VSCode 翻墙不就行了？
 * **【案发现场】**：一旦勾选，VSCode 的 SSH 终端当场暴毙。
 * **【原理解剖】**：
-  这是一个逻辑自雷。VSCode 建立远程连接的母体进程是 `ssh.exe`。把它放进白名单，意味着 **[你在桌面的敲击] $\rightarrow$ [数据包飞去美国达拉斯] $\rightarrow$ [达拉斯服务器尝试从外网访问校园内网机柜] $\rightarrow$ [校园防火墙物理超度]**。
+  这是一个逻辑自雷。VSCode 建立远程连接的母体进程是 `ssh.exe`。把它放进白名单，意味着 **[你在桌面的敲击] -> [数据包飞去美国达拉斯] -> [达拉斯服务器尝试从外网访问校园内网机柜] -> [校园防火墙物理超度]**。
   *永远记住：`ssh.exe` 必须留在本地港湾走物理网线，只有负责转发 API 请求的代理进程（潜望镜）才配进隧道。*
 
 ### 陷阱五：微软商店的“幽灵软链接 (Ghost Alias)”
