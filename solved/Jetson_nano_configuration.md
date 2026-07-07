@@ -128,6 +128,7 @@ docker run --runtime nvidia -it --rm \
 > **[Tasks API 强制隔离区]**: 在 Jetson (aarch64) 等边缘设备上，绝对禁止调用任何 `mp.solutions` 旧版接口。必须使用离线 `.task` 模型与 Tasks API，以此绕过那些在交叉编译阶段就被精简掉的底层 C++ 流注册表。
 
 > **[离屏渲染欺骗 (Surfaceless EGL)]**: 解决无头 (Headless) 容器 `kGpuService` 闪退的最优雅工业解法。不装虚拟桌面、不开 X11，只需 `EGL_PLATFORM=surfaceless` 和 `PYOPENGL_PLATFORM=egl`，底层图形驱动就会乖乖在内存中分配一块无形态缓冲区（Off-screen Buffer），瞬间填平图像预处理节点对屏幕句柄的贪婪渴求。
+* **[NVIDIA Jetson Mediapipe RET_CHECK Fail]**(https://github.com/google-ai-edge/mediapipe/issues/4091)：通过简单export 而解决底层图形驱动
 
 > **[显式对象封装 (Explicit mp.Image)]**: C++ 底层不再信任原生的 Numpy 矩阵类型。所有投喂给推理管线的特征矩阵，必须被强类型约束的 `mp.Image(image_format=mp.ImageFormat.SRGB, data=...)` 物理包裹。
 
